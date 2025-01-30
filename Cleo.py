@@ -42,15 +42,18 @@ def listen_for_stop():
         recognizer.adjust_for_ambient_noise(source)  # Noise reduction
         while True:
             try:
-                audio = recognizer.listen(source, timeout=0.5, phrase_time_limit=1)
+                audio = recognizer.listen(source, phrase_time_limit=1)  # Removed `timeout`
                 detected_text = recognizer.recognize_google(audio).strip().lower()
                 if detected_text == "stop":
                     stop_tts = True
                     break
             except sr.UnknownValueError:
-                continue
+                continue  # Ignore unrecognized speech and keep listening
             except sr.RequestError:
-                break
+                print("Speech recognition service unavailable.")
+                break  # Stop listening if STT service is unavailable
+            except sr.WaitTimeoutError:
+                continue  # Prevent crash by skipping timeout errors
 
 # Interactive loop
 while True:
@@ -112,7 +115,7 @@ while True:
 
         # Start a background thread to listen for "stop"
         stop_tts = False
-        stop_thread = threading.Thread(target=listen_for_stop)
+        stop_thread = threading.Thread(target=listen_for_stop, daemon=True)  # Daemon thread won't block exit
         stop_thread.start()
 
         # Convert response to speech with interruptible playback
