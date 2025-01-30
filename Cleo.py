@@ -7,8 +7,8 @@ import threading  # For running speech recognition in parallel
 
 # Initialize TTS engine
 tts_engine = pyttsx3.init()
-tts_engine.setProperty("rate", 170)  # Adjust speed if needed
-tts_engine.setProperty("volume", 1.0)  # Set volume (0.0 to 1.0)
+tts_engine.setProperty("rate", 170)
+tts_engine.setProperty("volume", 1.0)
 
 # Initialize STT engine
 recognizer = sr.Recognizer()
@@ -31,29 +31,30 @@ print(boot_message)
 tts_engine.say("Cognitive Linguistic Engagement Operator now Active. Please state your message!")
 tts_engine.runAndWait()
 
-# Store conversation history to improve context
-conversation_history = ""
+# Store conversation history with a limited context window
+conversation_history = []  # Stores last few exchanges
+history_limit = 3  # Keeps only the last 3 user-bot exchanges
 stop_tts = False  # Flag to stop TTS when 'stop' is detected
 
 # Function to monitor speech while TTS is playing
 def listen_for_stop():
     global stop_tts
     with mic as source:
-        recognizer.adjust_for_ambient_noise(source)  # Noise reduction
+        recognizer.adjust_for_ambient_noise(source)
         while True:
             try:
-                audio = recognizer.listen(source, phrase_time_limit=1)  # Removed `timeout`
+                audio = recognizer.listen(source, phrase_time_limit=1)
                 detected_text = recognizer.recognize_google(audio).strip().lower()
                 if detected_text == "stop":
                     stop_tts = True
                     break
             except sr.UnknownValueError:
-                continue  # Ignore unrecognized speech and keep listening
+                continue  # Ignore unrecognized speech
             except sr.RequestError:
                 print("Speech recognition service unavailable.")
-                break  # Stop listening if STT service is unavailable
+                break
             except sr.WaitTimeoutError:
-                continue  # Prevent crash by skipping timeout errors
+                continue  # Prevent crash
 
 # Interactive loop
 while True:
@@ -61,7 +62,7 @@ while True:
         # Capture speech
         with mic as source:
             print("\nListening...")
-            recognizer.adjust_for_ambient_noise(source)  # Noise reduction
+            recognizer.adjust_for_ambient_noise(source)
             audio = recognizer.listen(source)
 
         # Convert speech to text
@@ -74,51 +75,44 @@ while True:
             tts_engine.runAndWait()
             break
 
-        # Add user input to conversation history for better context
-        conversation_history += f"\nUser: {prompt}"
+        # Update conversation history, keeping only the last few exchanges
+        conversation_history.append(f"User: {prompt}")
+        conversation_history = conversation_history[-(history_limit * 2):]  # Maintain context
 
-        # System instruction for concise answers
+        # Construct input for model
         system_message = "C.L.E.O Active, Please state your message. Keep responses short and precise."
-        input_text = f"{system_message}{conversation_history}"
+        input_text = f"{system_message}\n" + "\n".join(conversation_history)
 
-        # Tokenize input and add attention mask
+        # Tokenize input
         model_inputs = tokenizer(
-            [input_text],
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            max_length=300  # Increased token limit
+            [input_text], return_tensors="pt", padding=True, truncation=True, max_length=300
         ).to(device)
 
         if tokenizer.pad_token_id is not None:
             model_inputs["attention_mask"] = (model_inputs.input_ids != tokenizer.pad_token_id).long()
 
-        # Generate response with constraints
+        # Generate response
         generated_ids = model.generate(
             model_inputs.input_ids,
             attention_mask=model_inputs.attention_mask,
-            max_new_tokens=100,  # Increased response length
-            temperature=0.7,  # More focused responses
-            top_p=0.8  # Encourages shorter, relevant outputs
+            max_new_tokens=100,
+            temperature=0.7,
+            top_p=0.8
         )
 
         # Decode and clean response
         response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-
-        # Remove system message and repeated user input
-        response_cleaned = response.replace(system_message, "").replace(f"User: {prompt}", "").strip()
-
-        # Further clean assistant prefixes (e.g., "Assistant:", "Chatbot:", "C.L.E.O Active:")
-        response_cleaned = re.sub(r"(C\.L\.E\.O Active:|Assistant:|Chatbot:)\s*", "", response_cleaned, flags=re.IGNORECASE).strip()
+        response_cleaned = re.sub(r"(C\.L\.E\.O Active:|Assistant:|Chatbot:)", "", response).strip()
+        response_cleaned = response_cleaned.replace(system_message, "").replace(f"User: {prompt}", "").strip()
 
         print(f"\nChatbot: {response_cleaned}")
 
         # Start a background thread to listen for "stop"
         stop_tts = False
-        stop_thread = threading.Thread(target=listen_for_stop, daemon=True)  # Daemon thread won't block exit
+        stop_thread = threading.Thread(target=listen_for_stop, daemon=True)
         stop_thread.start()
 
-        # Convert response to speech with interruptible playback
+        # Convert response to speech
         tts_engine.say(response_cleaned)
         tts_engine.runAndWait()
 
@@ -127,8 +121,8 @@ while True:
             print("\nTTS Stopped by User.")
             tts_engine.stop()
 
-        # Add chatbot's response to conversation history
-        conversation_history += f"\nC.L.E.O: {response_cleaned}"
+        # Update conversation history with chatbot response
+        conversation_history.append(f"C.L.E.O: {response_cleaned}")
 
     except sr.UnknownValueError:
         print("Could not understand audio, please try again.")
