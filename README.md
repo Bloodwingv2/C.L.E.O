@@ -16,7 +16,7 @@ Cognitive Linguistic Engagement Operator (C.L.E.O.) is a custom AI voice assista
 
 ```sh
 # Clone the repository
-git clone https://github.com/yourusername/CLEO.git
+git clone https://github.com/Bloodwingv2/C.L.E.O.git
 cd CLEO
 
 # Install dependencies
