@@ -1,6 +1,6 @@
-# Cognitive Linguistic Engagement Operator (C.L.E.O.)
+# Cognitive Linguistic Engagement Operator (C.L.E.O.) (BETA)
 
-## Overview
+## Overview (BETA)
 Cognitive Linguistic Engagement Operator (C.L.E.O.) is a custom AI voice assistant that is being developed to feature a personalized voice and offline TTS integration. It is designed for seamless and intelligent voice interactions with enhanced speech recognition and text-to-speech capabilities. Some features, including the custom voice and advanced TTS functionalities, are currently in beta and will be refined in future updates.
 
 ## Features (Proposed & Beta)
